@@ -1,0 +1,1410 @@
+
+Skip To Content
+Dashboard
+Kevin Rodriguez
+Account
+Dashboard
+Courses
+Calendar
+Inbox
+History
+9 unread release notes.9
+Help
+M-CS 315-001-003 Fall 2025PagesEmpirical Analysis of Huffman Profiles
+
+Fall 2025
+Home
+Announcements
+Syllabus
+Modules
+Grades13
+Seawolf Bundle
+University Library
+Smart Search
+Gradescope
+Empirical Analysis of Huffman Profiles
+Introduction 
+This write-up is intended to accompany the Framework for Empirical Analysis of Data Structures. Its purpose is to provide a concrete example of how to define a profile that uses a priority queue based on a specific algorithm—the Huffman tree construction—while generating traces, designing and running a harness, collecting run-time data, and charting the results.
+
+You should go back and forth between this and the Framework for Empirical Analysis of Data Structures write up. The latter provides detailed information regarding the concepts behind the run-time comparision of data structures. This write up is very explicit. It provides a concrete example so that the reader is able to better understand and formal description of the process.
+
+ 
+
+Here is a complete implementation Download Here is a complete implementation of the project that is being discussed in this writeup.
+
+ 
+
+Defining a profile
+When we compare the run time of multiple implementations of data structures that provide the same interface—such as implementations of priority queues—we’re really comparing how they behave under the kinds of usage patterns real algorithms create. The Huffman tree algorithm, shown below, which you implemented in Project 3, is a good example.
+
+ 
+
+Start with the BST’s in-order output: a vector of (word, frequency) pairs.
+
+Create a tree node for each <word, frequency> and store in a vector. 
+
+Create a priority queue with the vector of tree nodes. (bulk insert)
+Loop while the queue has at least two items:
+
+a ← extractMin() and b ← extractMin() (the two items with the smallest (freq, key_word)).
+
+Create parent with freq = a.freq + b.freq and key_word = min(a.key_word, b.key_word).
+
+Attach a as the left child and b as the right child for determinism.
+
+Insert parent back into the queue (this restores the order in the queue).
+
+When one item remains, that pointer is the root of the Huffman tree.
+
+ 
+
+The input to the algorithm is a vector of <word, frequency>. Below is an example of such a vector, taken from Lab 07.
+
+ 
+
+1 and
+1 at
+2 bright
+1 full
+1 is
+1 light
+1 moon
+2 night
+1 of
+1 shine
+1 shines
+1 stars
+3 the
+
+
+
+The algorithm immediately maps each pair into a vector of tree nodes—a data type that can hold a frequency and a word  and has left and right pointers for building a tree. Here is an image depicting the idea.
+
+ 
+
+initial_pq_construction.png
+
+ 
+
+The priority queue, the focus of our analysis, receives this structure as a bulk input and orders the elements to support efficient operations: insert, findMin, deleteMin, and extractMin. Therefore, the initial build of the queue consists of 13 inserts (in bulk).
+
+Applying the algorithm to this queue results in the following tree.
+
+ 
+
+final_huffman_tree.png
+
+ 
+
+This is done through the following exact priority-queue operations:
+
+First, 13 inserts (this takes place in Step 3 of the algorithm, just before the while loop)
+
+ 
+
+insert: (and, 1)
+insert: (at, 1)
+insert: (bright, 2)
+insert: (full, 1)
+insert: (is, 1)
+insert: (light, 1)
+insert: (moon, 1)
+insert: (night, 2)
+insert: (of, 1)
+insert: (shine, 1)
+insert: (shines, 1)
+insert: (stars, 1)
+insert: (the, 3)
+
+ 
+
+Next, in the while loop, we perform two extractMin (findMin immediately followed by deleteMin) followed by one insert. Here is the exact operations. 
+
+
+extractMin -- returns: (stars, 1)
+extractMin -- returns: (shines, 1)
+insert: (shines, 2)
+extractMin -- returns: (shine, 1)
+extractMin -- returns: (of, 1)
+insert: (of, 2)
+extractMin -- returns: (moon, 1)
+extractMin -- returns: (light, 1)
+insert: (light, 2)
+extractMin -- returns: (is, 1)
+extractMin -- returns: (full, 1)
+insert: (full, 2)
+extractMin -- returns: (at, 1)
+extractMin -- returns: (and, 1)
+insert: (and, 2)
+extractMin -- returns: (shines, 2)
+extractMin -- returns: (of, 2)
+insert: (of, 4)
+extractMin -- returns: (night, 2)
+extractMin -- returns: (light, 2)
+insert: (light, 4)
+extractMin -- returns: (full, 2)
+extractMin -- returns: (bright, 2)
+insert: (bright, 4)
+extractMin -- returns: (and, 2)
+extractMin -- returns: (the, 3)
+insert: (and, 5)
+extractMin -- returns: (of, 4)
+extractMin -- returns: (light, 4)
+insert: (light, 8)
+extractMin -- returns: (bright, 4)
+extractMin -- returns: (and, 5)
+insert: (and, 9)
+extractMin -- returns: (light, 8)
+extractMin -- returns: (and, 9)
+insert: (and, 17)
+
+ 
+
+The last insert into the queue is a pointer to the root of the tree—the image above.
+
+Regardless of which priority-queue implementation we use—binary heap implemented in a vector, binomial queue, pairing heap, leftist heap, or an inefficient baseline we used earlier when you hadn’t studied priority queues yet—they will all perform the same sequence of operations in the order shown. That sequence is called a trace.
+
+Using N to represent the number of <frequency, word> pairs in the initial input, the characteristics of the trace can be captured in the following algorithm.
+
+ 
+
+Perform N inserts
+Repeat N-1 times:
+       Perform 2 extractMin
+       Perform 1 insert
+This is a trace that follows the Huffman tree construction profile. Its pattern of queue operations tracks the operations that a Huffman encoding algorithm performs to build a coding tree.
+
+We further extend this abstraction to reflect the fact that N, the size of the input, varies with different data sets. For example, the entire text of Jack London’s The Call of the Wild generates a trace that reflects the number of words in that document, 35,484, and his White Fang generates a trace for 76,828. Here is the trace for The Call of the Wild.
+
+ 
+
+Perform 35,484 inserts
+Repeat 35,483 times:
+        Perform 2 extractMin
+        Perform 1 insert
+Of course, Huffman trees can code many other entities, including words. So we quickly realized that we should abstract away from words and their frequencies and instead use a sequence of randomly generated values to replace the concrete input used to construct the example Huffman tree. Here are the steps in that direction.
+
+From:
+
+1 and
+1 at
+2 bright
+1 full
+1 is
+1 light
+1 moon
+2 night
+1 of
+1 shine
+1 shines
+1 stars
+3 the
+to:
+
+ 
+
+1   0
+1   1
+2   2
+1   3
+1   4
+1   5
+1   6
+2   7
+1   8
+1   9
+1   10
+1   11
+3   13
+The words are specific to the input document and, therefore, we can disregard them without changing the characteristics of the Huffman profile. However, the words served as tie-breakers when the priority queue performed inserts. We do not want to lose that important aspect. Therefore, we replace each word with a unique ID (0, 1, 2, …), and the comparator breaks ties by (frequency, then ID).
+
+At the next level of abstraction, we stop using real word counts and switch to randomly generated numbers that behave like those counts. The goal isn’t to recreate a specific chapter of The Call of the Wild; it’s to mimic the feel—lots of ties, a few small numbers that pop up often. An easy way to do that is to draw keys from a small range compared to N so duplicates are common. For a tiny example like the one we’re using, you might choose keys 1–5; for something the size of The Call of the Wild, 1–50 still creates plenty of repeats. Later, if you want to be closer to real text, you can make the numbers skewed so a few keys are unusually frequent and most are not so. For now, a uniform random-number generator works well for our experiments.
+
+ 
+
+void generateTrace(const unsigned seed,
+    const std::size_t n,
+    TraceConfig &config,
+    std::uniform_int_distribution<int> &dist,
+    std::mt19937& gen ) {
+
+    // create and open the output file name
+    auto outputFileName = config.makeTraceFileName(seed, n);
+    std::cout << "File name: " << outputFileName << std::endl;
+    std::ofstream out(outputFileName.c_str());
+    if (!out.is_open()) {
+        std::cerr << "Failed to open file " << outputFileName << std::endl;
+        exit(1);
+    }
+    out << config.profileName << " " << n << " " << seed << std::endl;
+
+    // Generate N inserts.
+    unsigned id = 0;        // id serves as a tiebreaker. Don't use the loop variable for
+                            // this purpose because we have multiple loops and could
+                            // accidentally generate duplicate IDs.
+    int spaceBeforeNumber = 10;
+    for (unsigned i = 0; i < n; ++i) {
+        out << "I " << std::setw(spaceBeforeNumber) << dist(gen) << std::setw(spaceBeforeNumber) << id++ << "\n";
+    }
+    // Generate N-1 extractMin, extractMin, insert
+    const unsigned stop_idx = 2 * n - 1;
+    for (unsigned i = n; i < stop_idx; ++i) {
+        out << "E\nE\n";
+        out << "I " << std::setw(spaceBeforeNumber) << dist(gen) << std::setw(spaceBeforeNumber) << id++ << "\n";
+    }
+    out.close();
+}
+Pay particular attention to the code that follows "// Generate N inserts". Additionally, see Appendix A for the details of TraceConfig datatype that we have used in the code.
+
+Our Huffman-style trace generator captures what the priority queue actually sees without running the full Huffman algorithm. First, it inserts the N “leaf” items (one per word), then it repeats “take two best items and insert their combined weight” until one item remains.
+
+The above generator, when given a uniform random-number generator initialized with seed 23 and n = 13, generates the following trace when the values are drawn between 1 and 6. We have used “I” and “E” for insert and extractMin, respectively.
+
+I    4   0
+I    1   1
+I    2   2
+I    1   3
+I    6   4
+I    5   5
+I    4   6
+I    3   7
+I    2   8
+I    4   9
+I    4  10
+I    6  11
+I    5  12
+E
+E
+I    2  13
+E
+E
+I    3  14
+E
+E
+I    4  15
+E
+E
+I    6  16
+E
+E
+I    6  17
+E
+E
+I    1  18
+E
+E
+I    5  19
+E
+E
+I    6  20
+E
+E
+I    1  21
+E
+E
+I    2  22
+E
+E
+I    3  23
+E
+E
+I    2  24
+Now, if we were to compare the run-time performance of let's say two priority queues: Binary-Heap implemented in a vector and a Binomial Queues, we will feed it these traces instead of running the algorithm that build a Huffman tree because, we have captured the behavior of that algorithm in the above trace. That is, as far as the run-time of the operations of the queue are concerned, they are being asked to run exactly the same operations that the construction of a Huffman tree requires. 
+
+Incidentally, this trace is small in size and we have used it to illustrate the ideas. Complex data structures generally are only beneficial when the size of the input warrant their use. For a typical analysis of this type, we would use a random-number generator seed and generate traces of size . This will reveal the performance of these data structures beyond the constant factors that might make a data structure appear to perform better than another when responding to the same trace of a given profile. See Appendix A for how this information has been provided to the above code that generates Huffman trace. 
+
+The harness
+In software engineering, a test or benchmark harness is a small driver program that feeds controlled inputs—such as recorded traces—to the system under test and collects outputs or timing data. It wraps around the code under test without modifying it.
+
+In our implementation, the harness is the component responsible for reading the trace files, executing and timing each trace, and generating a CSV file. This CSV file contains all the data needed to plot the run-time performance of each implementation involved in the analysis.
+
+The trace generator and the harness are two distinct programs that communicate through the trace files. Each is a complete, standalone program.
+
+Here is the implementation of the main function for our harness.
+
+int main() {
+    const auto profileName = std::string("huffman_coding");
+    const auto traceDir = std::string("../../traces") + "/" + profileName; //awkward, but works for now.
+
+    std::vector<std::string> traceFiles;
+    // The following function reads all trace filenames that start with
+    // profileName. For example: Huffman_coding_N_1024_S_23.trace.
+    // The implementation of this function is provided in Appendix B.
+    find_trace_files_or_die(traceDir, profileName, traceFiles); 
+    std::vector<RunResult> runResults; // The definition of RunResult is in Appendix A
+
+    for (auto traceFile: traceFiles) {
+        const auto pos = traceFile.find_last_of("/\\");
+        auto traceFileBaseName = (pos == std::string::npos) ? traceFile : traceFile.substr(pos + 1);
+
+        std::vector<Operation> operations;  // You will see the definition of Operation shortly
+        RunMetaData run_meta_data;   // Will contain the name of the profile, N, and seed
+        load_trace_strict_header(traceFile, run_meta_data, operations);
+
+        // Run the trace operations using an instance of the BinaryHeapInVector.
+        RunResult oneRunResult_i1(run_meta_data);
+        BinaryHeapInVector binaryHeap(compare_pair);
+        oneRunResult_i1.impl = std::string("binary_heap");
+        oneRunResult_i1.trace_path = traceFileBaseName;
+        run_trace_ops(binaryHeap, oneRunResult_i1, operations);
+        runResults.emplace_back(oneRunResult_i1);
+        
+        // Run the trace operations using an instance of the BinomialQueue.
+        RunResult oneRunResult_i2(run_meta_data);
+        BinomialQueue binomialQueue(compare_pair);
+        oneRunResult_i2.impl = std::string("binomial_queue");
+        oneRunResult_i2.trace_path = traceFileBaseName;
+        run_trace_ops(binomialQueue, oneRunResult_i2, operations);
+        runResults.emplace_back(oneRunResult_i2);
+
+    }
+    // vector runResults now contains the run information for
+    // both, Binary Heap and Binomial Queue. 
+    std::cout << RunResult::csv_header() << std::endl;
+    for (auto run: runResults) {
+        std::cout << run.to_csv_row() << std::endl;
+    }
+
+    return 0;
+}
+ 
+
+The following are a few lines of the output generated by the function above. You’ll learn more about this shortly.
+
+ 
+
+binomial_queue,huffman_coding,huffman_coding_N_1024_S_23.trace,1024,13,2.64117,4093,2047,0,0,2046
+
+binomial_queue,huffman_coding,huffman_coding_N_1048576_S_23.trace,1048576,13,7077.89,4194301,2097151,0,0,2097150
+
+binary_heap,huffman_coding,huffman_coding_N_1024_S_13.trace,1024,23,0.841125,4093,2047,0,0,2046
+
+binary_heap,huffman_coding,huffman_coding_N_1048576_S_13.trace,1048576,23,2016.43,4194301,2097151,0,0,2097150
+
+
+The first and third lines show the run times (in milliseconds) for the Binomial Queue and Binary Heap, respectively, when N = 1024 (2¹⁰) and the seed value is 23. The exact run times are 2.64117 ms for the Binomial Queue and 0.841125 ms for the Binary Heap. Obviously, Binary Heap has performed better for that N!
+
+Let's take a look at Operation datatype. Each instance of this datatype represents one of the operations that we intend to time. The OpCode represents the operations that are of interest in this implementation.
+
+ 
+
+enum class OpCode {
+    Insert,     // I key id
+    FindMin,    // F
+    DeleteMin,  // D
+    ExtractMin  // E (findMin + deleteMin)
+  };
+
+struct Operation {
+    OpCode tag;
+    int key;   // meaningful only for Insert
+    int id;    // meaningful only for Insert
+
+    // Constructor for non-insert ops: F, D, E
+    explicit Operation(OpCode op_code) : tag(op_code), key(0), id(0) {
+        assert(op_code != OpCode::Insert);
+    }
+
+    // Constructor for insert ops: I key id
+    Operation(OpCode op_code, int k, int i) : tag(op_code), key(k), id(i) {
+        assert(op_code == OpCode::Insert);
+    }
+
+    void print() const {
+        switch (tag) {
+            case OpCode::Insert:
+                std::cout << "I" << " " << key << " " << id << std::endl;
+                break;
+            case OpCode::FindMin:
+                std::cout << "F" << std::endl;
+                break;
+
+            case OpCode::DeleteMin:
+                std::cout << "D" << std::endl;
+                break;
+            case OpCode::ExtractMin:
+                std::cout << "E" << std::endl;
+                break;
+            default:
+                std::cout << "Unknown operation" << std::endl;
+        }
+
+    }
+    // Identify the instance
+    bool isInsert()     const { return tag == OpCode::Insert; }
+    bool isFindMin()    const { return tag == OpCode::FindMin; }
+    bool isDeleteMin()  const { return tag == OpCode::DeleteMin; }
+    bool isExtractMin() const { return tag == OpCode::ExtractMin; }
+};
+
+It is a simple datatype that can represent operations that require arguments, such as insert that requires a <key, id> pair, and others such as extractMin that are standalone. 
+
+ 
+
+Ask ChatGPT
+
+What abstraction does the Operation structure provide in the context of running a trace? Specifically, how does it let us treat a sequence of different priority-queue operations in a uniform way?
+
+ 
+
+To illustrate its use, here is where we read the contents of a trace file, line by line  and create a vector of instances of Operation for later use.
+
+
+std::vector<Operation> out_operations
+while (std::getline(in, line)) {  // read each line of the trace file and create an instance
+                                  // of Operation from it.
+     const auto opCodeIdx = line.find_first_not_of(" \t\r\n");
+     if (opCodeIdx == std::string::npos || line[opCodeIdx] == '#')
+         continue; // skip blank and comment lines.
+
+     std::istringstream iss(line.substr(opCodeIdx)); // create an input-string-stream for the line
+     std::string tok; 
+     if (!(iss >> tok))     // the first item on the operation line is the op-code: I, E, F, D.
+          continue;
+
+     if (tok == "I") {
+          int key, id;
+          if (!(iss >> key >> id)) 
+               return false;
+          out_operations.emplace_back(OpCode::Insert, key, id); // create and save an insert line
+     } else if (tok == "F") {
+          out_operations.emplace_back(OpCode::FindMin);     // A find
+     } else if (tok == "D") {
+          out_operations.emplace_back(OpCode::DeleteMin);   // A deleteMin
+     } else if (tok == "E") {
+          out_operations.emplace_back(OpCode::ExtractMin);  // An extractMin
+     } else {
+         return false; // unknown token
+     }
+}
+It is customary to wrap an object that may have many incarnations into a structure or a class to hide its details and then, use the instance of the structure to query it. For example, isInsert()? isExtractMin()?, etc. You will see its use shortly. 
+
+The following function forms the core of our harness. It takes, as arguments, the implementation of a specific priority queue, a vector of operations, and an instance of RunResults for collecting timing data.
+
+template<class Impl>
+RunResult run_trace_ops(Impl &pq,   // an instance of the priority queue under consideration for timing
+                        RunResult &runResult,
+                        const std::vector<Operation> &ops) {
+    // Count ops mostly for sanity check
+    for (const auto &op: ops) {
+        switch (op.tag) {
+            case OpCode::Insert: ++runResult.inserts;
+                break;
+            case OpCode::FindMin: ++runResult.findMins;
+                break;
+            case OpCode::DeleteMin: ++runResult.deleteMins;
+                break;
+            case OpCode::ExtractMin: ++runResult.extractMins;
+                break;
+        }
+    }
+
+    // stuff deleted here.
+
+    using clock = std::chrono::steady_clock;
+    // stuff deleted.
+        std::cout << "Run " << i << " for N = " << runResult.run_meta_data.N << std::endl;
+        auto t0 = clock::now();
+        for (const auto &op: ops) {
+            switch (op.tag) {
+                case OpCode::Insert:
+                    pq.insert(std::pair<int, int>{op.key, op.id});
+                    break;
+                case OpCode::FindMin:
+                    (void) pq.findMin();
+                    break;
+                case OpCode::DeleteMin:
+                    pq.deleteMin();
+                    break;
+                case OpCode::ExtractMin:
+                    (void) pq.extractMin(); // convenience op = findMin + deleteMin
+                    break;
+            }
+        }
+        auto t1 = clock::now();
+        st::int64_t elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+
+    return runResult;
+}
+At the beginning, we iterate through the vector of trace operations and count how many times each operation appears in the trace. This is useful for instrumentation and for performing a sanity check—to confirm that the trace contains the expected number of operations. You should print these counts and either inspect them manually or compare them against metadata that specifies the expected values.
+
+Of particular interest is the loop that executes the operations and measures their run time. It begins with auto t0 = clock::now(); and ends with auto t1 = clock::now();. The difference between these two values represents the total time taken (in nanoseconds) to perform the operations on a given implementation of the priority queue.
+
+ st::int64_t elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
+Inside the loop, we scan the vector that contains the instances of Operation and execute each operation by calling the appropriate function of the instance of the priority queue that is being timed. 
+
+Of course, measuring a single run can lead to inaccurate results. This is because the operating system may be busy handling other tasks or performing internal setup routines to prepare your program for execution. All of this background activity—including caching, memory allocation, and other hardware preparations—can affect the timing you record.
+
+So how do we deal with that? Since running the trace is inexpensive, we simply execute it multiple times and use the median of the recorded times. Typically, you run the trace once without timing it—this allows the operating system to “warm up” and prepare for execution. Then, you run the trace several more times (for example, seven) and take the median of those timings.
+
+Here is the same code, updated to include this approach.
+
+template<class Impl>
+RunResult run_trace_ops(Impl &pq,
+                        RunResult &runResult,
+                        const std::vector<Operation> &ops) {
+    // Count ops mostly for sanity check
+    for (const auto &op: ops) {
+        switch (op.tag) {
+            case OpCode::Insert: ++runResult.inserts;
+                break;
+            case OpCode::FindMin: ++runResult.findMins;
+                break;
+            case OpCode::DeleteMin: ++runResult.deleteMins;
+                break;
+            case OpCode::ExtractMin: ++runResult.extractMins;
+                break;
+        }
+    }
+    // One untimed run
+
+    pq.clear(); // clear the queue to start fresh
+    std::cout << "Starting the throw-away run for N = " << runResult.run_meta_data.N << std::endl;
+    for (const auto &op: ops) {
+        switch (op.tag) {
+            case OpCode::Insert:
+                pq.insert(std::pair<int, int>{op.key, op.id});
+                break;
+            case OpCode::FindMin:
+                (void) pq.findMin();
+                break;
+            case OpCode::DeleteMin:
+                pq.deleteMin();
+                break;
+            case OpCode::ExtractMin:
+                (void) pq.extractMin();
+                break;
+        }
+    }
+
+    using clock = std::chrono::steady_clock;
+    const int numTrials = 7;
+
+    std::vector<std::int64_t> trials_ns; // a vector of timed runs
+    trials_ns.reserve(numTrials);
+
+    for (int i = 0; i < numTrials; ++i) {
+        pq.clear();
+        std::cout << "Run " << i << " for N = " << runResult.run_meta_data.N << std::endl;
+        auto t0 = clock::now(); // perform and time a complete run
+        for (const auto &op: ops) {
+            switch (op.tag) {
+                case OpCode::Insert:
+                    pq.insert(std::pair<int, int>{op.key, op.id});
+                    break;
+                case OpCode::FindMin:
+                    (void) pq.findMin();
+                    break;
+                case OpCode::DeleteMin:
+                    pq.deleteMin();
+                    break;
+                case OpCode::ExtractMin:
+                    (void) pq.extractMin(); // convenience op = findMin + deleteMin
+                    break;
+            }
+        }
+        auto t1 = clock::now(); 
+        // save this particular run's timing in trials_ns. 
+        trials_ns.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+    }
+
+    // Find the median of the 7 runs
+    const size_t mid = trials_ns.size() / 2;     // the median of 0..numTrials
+    std::nth_element(trials_ns.begin(), trials_ns.begin()+mid, trials_ns.end());
+    runResult.elapsed_ns = trials_ns[mid];
+
+    return runResult;
+}
+ 
+
+By the way, since run_trace_ops is a templated function—and you may not yet be familiar with templates—we’ve avoided breaking the code into multiple helper functions, even though doing so would normally make good design sense.
+
+Here is the code for RunResults.
+
+ 
+
+struct RunResult {
+    // identifiers
+    std::string impl;         // "binheap", "binomial", "oracle", ...
+    std::string trace_path;   // e.g., "traces/huffman_N_1024_seed_23.trace"
+    std::string trace_type;   // full_operation, insert_only, extract_min_only
+    RunMetaData run_meta_data;
+
+    RunResult(const RunMetaData& meta_data): run_meta_data(meta_data) {}
+
+    // timing
+    std::int64_t elapsed_ns = 0;   // total replay time (nanoseconds)
+
+    // operation counts
+    long inserts     = 0;  // 'I'
+    long findMins    = 0;  // 'F'
+    long deleteMins  = 0;  // 'D'
+    long extractMins = 0;  // 'E'
+
+    // convenience
+    long total_ops() const {
+        return inserts + findMins + deleteMins + extractMins;
+    }
+    double elapsed_ms() const {
+        return static_cast<double>(elapsed_ns) / 1e6;
+    }
+    double ops_per_sec() const {
+        const double secs = static_cast<double>(elapsed_ns) / 1e9;
+        return secs > 0.0 ? static_cast<double>(total_ops()) / secs : 0.0;
+    }
+
+    // CSV helpers
+    static std::string csv_header() {
+        return "impl,profile,trace_path,N,seed,elapsed_ms,ops_total,inserts,findmins,deletemins,extractmins";
+    }
+
+    std::string to_short_csv_row() const {
+        std::ostringstream os;
+        os << impl << ','
+            << run_meta_data.seed << ','
+          << run_meta_data.N << ','
+          << elapsed_ms();
+
+        return os.str();
+    }
+
+    std::string to_csv_row() const {
+        std::ostringstream os;
+        os << impl << ','
+           << run_meta_data.profile << ','
+           << trace_path << ','
+           << run_meta_data.N << ','
+           << run_meta_data.seed << ','
+           << elapsed_ms() << ','
+           << total_ops() << ','
+           << inserts << ','
+           << findMins << ','
+           << deleteMins << ','
+           << extractMins;
+        return os.str();
+    }
+};
+
+The structure has access to the run’s overall data, including the name of the profile being executed, the values of N and the random seed (stored in run_meta_data), as well as space to record the count of each operation and the total time required to execute the trace it represents. Finally, it provides a to_csv_row function, which produces a line of comma-separated values containing all the information needed to plot the data point corresponding to this run at the given N. The following are four lines each produced by running run_trace_ops that you saw earlier. 
+
+ 
+
+binomial_queue,huffman_coding,huffman_coding_N_1024_S_23.trace,1024,13,2.64117,4093,2047,0,0,2046
+binomial_queue,huffman_coding,huffman_coding_N_1048576_S_23.trace,1048576,13,7077.89,4194301,2097151,0,0,2097150
+binary_heap,huffman_coding,huffman_coding_N_1024_S_13.trace,1024,23,0.841125,4093,2047,0,0,2046
+binary_heap,huffman_coding,huffman_coding_N_1048576_S_13.trace,1048576,23,2016.43,4194301,2097151,0,0,2097150
+
+This is a good time to go back and look at the main function that we provided at the start of this section since you have seen all pieces that it pulls together. Please refer to Appendix B for the full implementation of 
+
+ 
+
+Ask ChatGPT
+
+Briefly describe the main steps a benchmark harness performs when running and timing a trace across multiple implementations of a data structure.
+Briefly list the most commonly used C++ std::string operations and provide an example for each.
+ 
+
+Plotting the results
+The harness produces a CSV file that can be used to plot the results of the experiments. Many graphing tools can visualize the data contained in this CSV file—D3.js is one such package. Its graphics are highly interactive and well-suited for displaying performance trends and comparisons. That is the one that we have used for this section. Its code is included in the package that you have downloaded for this project. 
+
+Here is a graph generated from our CSV file (see Appendix C) produced by our implementation.
+
+ 
+
+Screenshot 2025-11-05 at 6.34.27 PM.png
+
+ 
+
+And here is the same graph with  baseline turned on.
+
+ 
+
+Screenshot 2025-11-05 at 6.35.35 PM.png
+
+ 
+
+ 
+
+Graphing with a log-based x-axis
+We’re plotting N on a log-base-2 x-axis. That means every tick doubles the input size: 2^{10}, 2^{11}, 2^{12}, … are evenly spaced. This is useful because most algorithm questions are really “what happens when I double N?”
+
+ 
+
+If we used a normal (linear) x-axis:
+The small inputs (like 2^{10}, 2^{11}) would get squished together on the left, and the big inputs would stretch out on the right. Early behavior would be hard to see. Also, it’s hard to figure out “what happens on a doubling” because those doublings aren’t evenly spaced on the screen.
+
+With a log₂ x-axis:
+Each step is a clean doubling. That gives you easy mental reference:
+
+Linear time (): when N doubles, time doubles -- on our plot, each step up is roughly ×2, so the curve makes a steady, almost straight climb.
+
+: 
+
+Think of it as “twice the work, plus a small extra factor.” The “” part grows very slowly—when you double ,  just goes up by one. So:
+
+At  (that’s ),  is about . Doubling to  makes it 11. So the total work is “twice as much” times “11 instead of 10,” i.e., a bit more than double—roughly a 10% extra bump.
+
+At larger , that extra bump gets even smaller (because going from 20 to 21 is a 1/20 ≈ 5% bump, not 10%).
+
+ 
+
+On a log-x plot this shows up as a curve that’s just above the linear line: it climbs a little faster than linear at first, but the “extra over doubling” shrinks as  grows, so the curve gently bends rather than shooting upward. It sits between the straight-ish linear trend and the sharply rising  curve.
+
+Quadratic (): doubling  roughly quadruples time -- the curve peels upward quickly.
+
+ 
+
+We keep the y-axis linear (milliseconds) so the vertical height is the real run time. 
+
+ 
+
+Note about the build: a binary heap could build the initial structure in O(N) using heapify. In our measurements we did not use that fast build; we inserted items one-by-one (so the build itself is . That actually puts the heap at a disadvantage—and it still performs very well overall because the run time is dominated by those fast, cache-friendly deletions.
+
+ 
+
+Reading the five lines: four timed curves + one dashed theory
+ 
+
+Binary heap (array-based)
+What the curve is telling us is: the heap is efficient in practice, even in a slightly handicapped setup. We didn’t use the linear-time heapify for the initial N inserts—we built it by inserting one-by-one—yet the line still sits low and climbs gently. That’s because a binary heap stores elements in a contiguous vector, so its core operations are cache-friendly:
+    •    findMin is just a peek;
+    •    deleteMin is a single sift-down through adjacent memory;
+    •    insert is a sift-up along that same array.
+All three have small constant factors, so on the log-x plot the heap’s timing looks reasonably flat as N doubles—growing only a bit faster than ×2 each step—exactly what you’d expect for an N\log N algorithm. That’s why the solid heap curve tracks the dashed N\log N baseline closely, usually just above it, and stays comfortably below the other real implementations.
+
+ 
+
+Binomial queue
+This curve says: the binomial queue is correct and -shaped, but it carries larger constant factors, so it sits above the heap across the range.
+
+Why? Two big reasons you can see in the timing:
+    
+
+Its strength (amortized O(1) insert) doesn’t move the needle much here. Over the whole trace you do about the same number of inserts and deletions. That means the “cheap insert” advantage gets balanced out by all the deletions you also have to do. In other words, there isn’t a huge insert surplus where the binomial queue could shine.
+Each extraction involves more pointer-heavy work. A binomial queue keeps a forest of binomial trees. To extract the min, you typically scan the root list to find the smallest root and then perform a merge to link the children of the node that is being deleted with the remaining trees. That’s multiple passes and pointer chasing (follow a pointer, read a node, follow another pointer…), which is less cache-friendly than a heap’s single sift-down through a contiguous array. Same  in theory, but more overhead per step in practice.
+Put those together and the picture makes sense: on the log-x plot the binomial queue’s line has about the same slope as the heap (both scale like ), but it’s shifted upward—a consistent gap that reflects higher constants. It still tracks the dashed  baseline nicely—just from above—which is exactly what we’d expect for a solid  design whose internals are a bit heavier on this particular workload.
+
+ 
+
+linear_base (the “function-call floor”)
+This line is a timed curve too, but it isn’t a real priority queue—it’s a stub where each API call (insert, findMin, deleteMin, extractMin) does O(1) work. Why include it? Two reasons:
+
+It gives you a floor for overhead: “what does it cost to just call the functions and loop through roughly 4N operations?” Real  structures should sit above this line, but not by a significant  amount at moderate sizes.
+It shows what linear looks like on a log-x plot. With a log₂ x-axis, each tick to the right doubles N. A linear-time curve roughly doubles in height each tick, so it appears as a steady, almost straight climb. Keep this visual in mind; it helps you see that the binary heap and binomial queue climb a little faster than linear (as  should), while the quadratic line climbs much faster.
+quadratic_oracle (real semantics, quadratic insert)
+This one is also a timed implementation, but intentionally simple: it keeps the data in a form where insert is  (think “keep a vector sorted by insertion”). Everything is correct—mins are mins—but the cost profile pushes total time toward  over this Huffman trace. That’s why the curve peels upward quickly as  doubles. We truncate it around mid-range  so the figure isn’t dominated by one line (and so your runs finish in a reasonable time). Its job is to anchor your intuition: compared to the  designs, a quadratic approach looks okay at tiny  but falls behind fast, which is exactly what the shape on the log-x plot makes obvious.
+
+ 
+
+Reading the dashed “” reference
+The dashed line is a theory guide, not a measurement. It plots the mathematical shape . We pick the constant  so the line passes through the binary heap’s smallest-point, then we draw it across all . That way, the dashed line shows you what “ growth” should look like in the same units (milliseconds) as your real curves.
+
+How to use it when you look at the figure.
+
+
+Shape check (scaling): If your binary heap and binomial queue lines rise slightly faster than linear and follow the bend of the dashed reference line, that’s great—your data behaves as expected. If a line bends upward more sharply than the dashed reference, it’s scaling worse (indicating extra overhead that grows with N). If it’s noticeably flatter than the dashed line across multiple doublings, you should double-check your implementation for possible bugs.
+One way to verify correctness is to run the same trace on both your quadratic implementation and the one whose graph looks suspicious. Instead of measuring time, compare their results—both should return the same value for the extractMin operation. That’s why the quadratic version is called the Oracle: it’s a trusted, correct implementation that you can use as a reference to validate other implementations.
+
+Constant-factor gap: The vertical distance between a timed curve and the dashed line is your quick read on constants. The binary heap usually hugs the dashed line (small constants, great locality). The binomial queue tends to sit above it by a steady margin (same big-O, bigger constants).
+   
+Finally, think of the dashed  as a ruler: check that your real curves have the same tilt (scaling) and then look at the offset (constants). The heap matches both well; the binomial queue matches the tilt but rides higher; the linear and quadratic timed curves bracket the it from below and above.
+
+ 
+
+The partial implementation and its directory structure. 
+Here is a zip file that contains the entire code that has been used to generate the CSVs and plot the graphs. It includes the four implementations that we described earlier. Here is the directory structure:
+
+ 
+
+The directory structure of the Huffman trace.
+
+ 
+
+And here is the directory structure with some of the directories expanded.
+
+ 
+
+Expanded directory structure of Huffman trace project
+
+ 
+
+The trace files expanded.
+
+ 
+
+Trace files expanded
+
+ 
+
+What’s in These Directories
+1. Chats:
+
+This directory includes an HTML file used to graph the results of timing Huffman traces. It contains a D3.jsimplementation designed specifically for this project. You can open it in a browser to view the graph. The file already includes default data—the same results shown in the figures above—but it is designed to let you upload your own CSV file for plotting.
+
+A word of caution: after uploading a CSV file for the first time, the screen refreshes with the new data. However, if you modify the same CSV file and upload it again, the browser may not reload it. This happens because the browser caches files to save time, and if the filename hasn’t changed, it assumes the file is the same. To avoid this, save your updated data under a different filename before uploading. On subsequent edits, you can switch back to the first file. Alternating between two filenames ensures the browser treats each upload as new data and refreshes the graph properly.
+
+ 
+
+2. csvs:
+
+This directory contains one CSV file—the same one used to generate the figures in the previous section. Use it to verify that you can successfully upload a CSV file into the browser and view it in the graph.
+
+ 
+
+3. src:
+
+All source files are located here. The following are complete programs, each with its own main function:
+
+harness
+
+BinaryHeapInVector
+
+BinomialQueues
+
+trace-generator
+
+Additionally, the following components are used by the harness:
+
+BinaryHeapInVector
+
+BinomialQueues
+
+LinearBaseLine
+
+Oracle
+
+When you run the harness, it uses these four implementations internally.
+
+ 
+
+ 
+
+4. trace-generators:
+
+This directory contains complete programs that generate traces for each profile. Currently, huffman_coding includes a self-contained program that generates traces for this profile. It writes its output files to the traces directory.
+
+ 
+
+5. traces:
+
+Each trace generator writes its trace files into this directory.
+
+ 
+
+6. utils:
+
+This directory contains data type definitions and shared functions used by multiple components. In particular, it includes the comparator function that the priority queues use to order their elements.
+
+ 
+
+7. Top-level main.cpp:
+
+This file is not currently used.
+
+ 
+
+Appendix A
+The following is the TraceConfig used for generating a trace. It stores the list of Ns, which are the problem sizes (for example, 1024, 2048, etc.) for which traces are generated. In addition, this structure keeps track of the random-number generator seeds used to create the <key, id> pairs for the insert operations. Finally, given the name of the profile, it constructs the appropriate filename for the trace.
+
+struct TraceConfig {
+
+    explicit TraceConfig(const std::string &pName):
+        profileName(pName) {
+        Ns.push_back(13);      // This is modeled after lab07 data which had 13 unique words.
+        // Generates N = 2^10, 2^11, ..., 2^20
+        constexpr int start_exp = 10, end_exp = 20;
+        for (int exp = start_exp; exp <= end_exp; exp++)
+            Ns.push_back(1 << exp);
+
+    }
+
+
+    std::vector<unsigned> seeds = {23};  // only one seed to get started.
+    std::vector<unsigned> Ns;
+    std::string traceDirectory = "../../../traces"; // awkward!
+    std::string implementationName;
+    std::string profileName;
+
+    std::string makeTraceFileName(const unsigned int seed, const unsigned n) {
+        assert(profileName != "");
+        return traceDirectory + "/" +
+                profileName + "/" +
+                profileName +  "_N_" + std::to_string(n) + "_S_" + std::to_string(seed) + ".trace";
+    }
+};
+After running the Huffman trace using this configuration file, the output files are generated with names similar to the following. 
+
+ 
+
+huffman_coding_N_13_S_23.trace
+
+huffman_coding_N_1024_S_23.trace
+
+huffman_coding_N_2048_S_23.trace
+
+huffman_coding_N_4096_S_23.trace
+
+huffman_coding_N_8192_S_23.trace
+
+huffman_coding_N_16384_S_23.trace
+
+ 
+
+Below is the main function for generating the trace files. 
+
+ 
+
+int main() {
+
+    // TraceConfig provides pre-configured values such as N and seed
+    TraceConfig config( std::string("huffman_coding"));
+    for (auto seed: config.seeds) {  // currently, we are using one seed only.
+        std::mt19937 rng(seed);   // create a random-number generator using "seed"
+
+        for (auto n: config.Ns) {
+            // We need to limit the range of values that get generated.
+            // To model the Huffman tree behavior, we want to generate a lot of
+            // duplicates. So, we use choose_key_upper_bound to increase
+            // the upperbound according to the size of the trace.
+            const unsigned key_min = 1, key_max = choose_key_upper_bound(n);
+            std::uniform_int_distribution<int> dist(key_min, key_max);
+
+            generateTrace(seed, n, config, dist, rng);
+        }
+
+    }
+
+    return 0;
+}
+
+
+Here is function choose_key_upper_bound that is used to limit the range of values that the random-number generator produces.
+
+ 
+
+int choose_key_upper_bound(unsigned int N) {
+    // You can change the upperbound to
+    // see how that effects the frequency (key)
+    // that get generated.
+
+    if (N <= 50)   // this is for the benefit of our small data set.
+        return 3;
+    if (N <= (1u << 12))
+        return 12;
+    if (N <= (1u << 15))
+        return 32;
+    if (N <= (1u << 18))
+        return 64;
+    return 128; // for 2^19 and 2^20
+}
+The above code, along with the main engine function described in the text when discussing traces, completes the implementation for generating the Huffman traces.
+
+ 
+
+Appendix B
+Here are different components that make up the harness that we have used for benchmarking. 
+
+Each instance of RunResult provides the timing information for a given profile, implementation, N, and seed. It gives rise to (to_csv_line) a line in the output CSV file that the harness generates. 
+
+struct RunResult {
+
+    // identifiers
+    std::string impl;         // "binheap", "binomial", "oracle", ...
+    std::string trace_path;   // e.g., "traces/huffman_N_1024_seed_23.trace"
+    std::string trace_type;   // full_operation, insert_only, extract_min_only
+    RunMetaData run_meta_data;
+
+    RunResult(const RunMetaData& meta_data): run_meta_data(meta_data) {}
+
+    // timing
+    std::int64_t elapsed_ns = 0;   // total replay time (nanoseconds)
+
+    // operation counts
+    long inserts     = 0;  // 'I'
+    long findMins    = 0;  // 'F'
+    long deleteMins  = 0;  // 'D'
+    long extractMins = 0;  // 'E'
+
+    // convenience
+    long total_ops() const {
+        return inserts + findMins + deleteMins + extractMins;
+    }
+    double elapsed_ms() const {
+        return static_cast<double>(elapsed_ns) / 1e6;
+    }
+    double ops_per_sec() const {
+        const double secs = static_cast<double>(elapsed_ns) / 1e9;
+        return secs > 0.0 ? static_cast<double>(total_ops()) / secs : 0.0;
+    }
+
+    // CSV helpers
+    static std::string csv_header() {
+        return "impl,profile,trace_path,N,seed,elapsed_ms,ops_total,inserts,findmins,deletemins,extractmins";
+    }
+
+    std::string to_short_csv_row() const {
+        std::ostringstream os;
+        os << impl << ','
+            << run_meta_data.seed << ','
+          << run_meta_data.N << ','
+          << elapsed_ms();
+
+        return os.str();
+    }
+
+    std::string to_csv_row() const {
+        std::ostringstream os;
+        os << impl << ','
+           << run_meta_data.profile << ','
+           << trace_path << ','
+           << run_meta_data.N << ','
+           << run_meta_data.seed << ','
+           << elapsed_ms() << ','
+           << total_ops() << ','
+           << inserts << ','
+           << findMins << ','
+           << deleteMins << ','
+           << extractMins;
+        return os.str();
+    }
+};
+
+RunResult holds information about a single run, whereas the RunMetaData data type holds the metadata shared across all runs of a given profile at a particular data point.
+
+struct RunMetaData {
+
+    // dataset metadata
+    std::string profile;      // e.g., "huffman"
+    int N   = 0;    // problem size for the trace (e.g., initial inserts)
+    int seed = 0;   // RNG seed used to generate the trace
+
+};
+As we mentioned earlier, OpCode serves as an abstraction for a priority queue operation. It represents exactly one operation—such as Insert, FindMin, DeleteMin, or ExtractMin—and, when needed, includes the data required for that operation. For example, an instance representing an Insert operation also stores the corresponding <key, id> pair associated with that insertion.
+
+enum class OpCode {
+    Insert,     // I key id
+    FindMin,    // F
+    DeleteMin,  // D
+    ExtractMin  // E (findMin + deleteMin)
+  };
+
+struct Operation {
+    OpCode tag;
+    int key;   // meaningful only for Insert
+    int id;    // meaningful only for Insert
+
+    // Constructor for non-insert ops: F, D, E
+    explicit Operation(OpCode op_code) : tag(op_code), key(0), id(0) {
+        assert(op_code != OpCode::Insert);
+    }
+
+    // Constructor for insert ops: I key id
+    Operation(OpCode op_code, int k, int i) : tag(op_code), key(k), id(i) {
+        assert(op_code == OpCode::Insert);
+    }
+
+    void print() const {
+        switch (tag) {
+            case OpCode::Insert:
+                std::cout << "I" << " " << key << " " << id << std::endl;
+                break;
+            case OpCode::FindMin:
+                std::cout << "F" << std::endl;
+                break;
+
+            case OpCode::DeleteMin:
+                std::cout << "D" << std::endl;
+                break;
+            case OpCode::ExtractMin:
+                std::cout << "E" << std::endl;
+                break;
+            default:
+                std::cout << "Unknown operation" << std::endl;
+        }
+
+    }
+    // Identify the instance
+    bool isInsert()     const { return tag == OpCode::Insert; }
+    bool isFindMin()    const { return tag == OpCode::FindMin; }
+    bool isDeleteMin()  const { return tag == OpCode::DeleteMin; }
+    bool isExtractMin() const { return tag == OpCode::ExtractMin; }
+};
+ 
+
+The following is a list of the supporting functions—including the one responsible for timing traces—and the main function for our harness. In the write-up, we did not discuss the function find_trace_files_or_die, which, given the directory containing the trace files and the name of a profile, collects the names of all corresponding trace files into a vector.
+
+ 
+
+template<class Impl>
+RunResult run_trace_ops(Impl &pq,
+                        RunResult &runResult,
+                        const std::vector<Operation> &ops) {
+    // Count ops mostly for sanity check
+    for (const auto &op: ops) {
+        switch (op.tag) {
+            case OpCode::Insert: ++runResult.inserts;
+                break;
+            case OpCode::FindMin: ++runResult.findMins;
+                break;
+            case OpCode::DeleteMin: ++runResult.deleteMins;
+                break;
+            case OpCode::ExtractMin: ++runResult.extractMins;
+                break;
+        }
+    }
+    // One untimed run
+
+    pq.clear();
+    std::cout << "Starting the throw-away run for N = " << runResult.run_meta_data.N << std::endl;
+    for (const auto &op: ops) {
+        switch (op.tag) {
+            case OpCode::Insert:
+                pq.insert(std::pair<int, int>{op.key, op.id});
+                break;
+            case OpCode::FindMin:
+                (void) pq.findMin();
+                break;
+            case OpCode::DeleteMin:
+                pq.deleteMin();
+                break;
+            case OpCode::ExtractMin:
+                (void) pq.extractMin();
+                break;
+        }
+    }
+
+    using clock = std::chrono::steady_clock;
+    const int numTrials = 7;
+
+    std::vector<std::int64_t> trials_ns;
+    trials_ns.reserve(numTrials);
+
+    for (int i = 0; i < numTrials; ++i) {
+        pq.clear();
+        std::cout << "Run " << i << " for N = " << runResult.run_meta_data.N << std::endl;
+        auto t0 = clock::now();
+        for (const auto &op: ops) {
+            switch (op.tag) {
+                case OpCode::Insert:
+                    pq.insert(std::pair<int, int>{op.key, op.id});
+                    break;
+                case OpCode::FindMin:
+                    (void) pq.findMin();
+                    break;
+                case OpCode::DeleteMin:
+                    pq.deleteMin();
+                    break;
+                case OpCode::ExtractMin:
+                    (void) pq.extractMin(); // convenience op = findMin + deleteMin
+                    break;
+            }
+        }
+        auto t1 = clock::now();
+        trials_ns.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+    }
+
+    const size_t mid = trials_ns.size() / 2;     // the median of 0..numTrials
+    std::nth_element(trials_ns.begin(), trials_ns.begin()+mid, trials_ns.end());
+    runResult.elapsed_ns = trials_ns[mid];
+
+    return runResult;
+}
+
+// Assumes OpCode/Op (with the two arguments) are defined
+
+// The first line of the header must contain:  <profile> <N> <seed>
+// After the header: blank lines and lines starting with '#' are okay
+// and will be ignored.
+// Opcodes: I <key> <id> | F | D | E
+
+bool load_trace_strict_header(const std::string &path,
+                              RunMetaData &runMeta,
+                              std::vector<Operation> &out_operations) {
+    std::string profile = "";
+    int N = 0;
+    int seed = 0;
+    out_operations.clear();
+
+    std::ifstream in(path);
+    if (!in.is_open())
+        return false;
+
+    // --- read FIRST line as header
+    std::string header;
+    if (!std::getline(in, header))
+        return false;
+
+    // Look for a non-while-space character
+    const auto first = header.find_first_not_of(" \t\r\n");
+    // Since this is the first line, we don't expect it to be blank
+    // or start with a comment.
+    if (first == std::string::npos || header[first] == '#')
+        return false;
+
+    // Create a string stream so that we can read the profile name,
+    // N, and the seed more easily.
+    std::istringstream hdr(header);
+    if (!(hdr >> profile >> N >> seed))
+        return false;
+
+    runMeta.profile = profile;
+    runMeta.N = N;
+    runMeta.seed = seed;
+
+    // --- read ops, allowing comments/blank lines AFTER the header ---
+    std::string line;
+    while (std::getline(in, line)) {
+        const auto opCodeIdx = line.find_first_not_of(" \t\r\n");
+        if (opCodeIdx == std::string::npos || line[opCodeIdx] == '#')
+            continue; // skip blank and comment lines.
+
+        std::istringstream iss(line.substr(opCodeIdx));
+        std::string tok; //
+        if (!(iss >> tok))
+            continue;
+
+        if (tok == "I") {
+            int key, id;
+            if (!(iss >> key >> id)) return false;
+            out_operations.emplace_back(OpCode::Insert, key, id);
+        } else if (tok == "F") {
+            out_operations.emplace_back(OpCode::FindMin);
+        } else if (tok == "D") {
+            out_operations.emplace_back(OpCode::DeleteMin);
+        } else if (tok == "E") {
+            out_operations.emplace_back(OpCode::ExtractMin);
+        } else {
+            return false; // unknown token
+        }
+    }
+
+    return true;
+}
+
+
+void find_trace_files_or_die(const std::string &dir,
+                             const std::string &profile_prefix,
+                             std::vector<std::string> &out_files) {
+    namespace fs = std::filesystem;
+    out_files.clear();
+
+    std::error_code ec;
+    fs::path p(dir);
+
+    if (!fs::exists(p, ec)) {
+        std::cerr << "Error: directory '" << dir << "' does not exist";
+        if (ec) std::cerr << " (" << ec.message() << ")";
+        std::cerr << "\n";
+        std::exit(1);
+    }
+    if (!fs::is_directory(p, ec)) {
+        std::cerr << "Error: path '" << dir << "' is not a directory";
+        if (ec) std::cerr << " (" << ec.message() << ")";
+        std::cerr << "\n";
+        std::exit(1);
+    }
+
+    fs::directory_iterator it(p, ec);
+    if (ec) {
+        std::cerr << "Error: cannot iterate directory '" << dir << "': "
+                << ec.message() << "\n";
+        std::exit(1);
+    }
+
+    const std::string suffix = ".trace";
+    for (const auto &entry: it) {
+        if (!entry.is_regular_file(ec)) {
+            if (ec) {
+                std::cerr << "Error: is_regular_file failed for '"
+                        << entry.path().string() << "': " << ec.message() << "\n";
+                std::exit(1);
+            }
+            continue;
+        }
+
+        const std::string name = entry.path().filename().string();
+        const bool has_prefix = (name.rfind(profile_prefix, 0) == 0);
+        const bool has_suffix = name.size() >= suffix.size() &&
+                                name.compare(name.size() - suffix.size(),
+                                             suffix.size(), suffix) == 0;
+
+        if (has_prefix && has_suffix) {
+            out_files.push_back(entry.path().string());
+        }
+    }
+
+    std::sort(out_files.begin(), out_files.end()); // stable order for reproducibility
+}
+
+int main() {
+    const auto profileName = std::string("huffman_coding");
+    const auto traceDir = std::string("../../traces") + "/" + profileName;
+
+    std::vector<std::string> traceFiles;
+    find_trace_files_or_die(traceDir, profileName, traceFiles);
+    /*
+    for (auto file: traceFiles) {
+        std::cout << file << "\n";
+    }
+    */
+    if (traceFiles.size() == 0) {
+        std::cerr << "No trace files found.\n";
+        exit(1);
+    }
+
+    std::vector<RunResult> runResults;
+    for (auto traceFile: traceFiles) {
+        const auto pos = traceFile.find_last_of("/\\");
+        auto traceFileBaseName = (pos == std::string::npos) ? traceFile : traceFile.substr(pos + 1);
+
+        std::vector<Operation> operations;
+        RunMetaData run_meta_data;
+        load_trace_strict_header(traceFile, run_meta_data, operations);
+
+        if (run_meta_data.N < 1 << 16) {
+            RunResult oneRunResult_i0(run_meta_data);
+            QuadraticOracle oracle(compare_pair);
+            oneRunResult_i0.impl = std::string("quadratic_oracle");
+            oneRunResult_i0.trace_path = traceFileBaseName;
+            run_trace_ops(oracle, oneRunResult_i0, operations);
+            runResults.emplace_back(oneRunResult_i0);
+        }
+
+        RunResult oneRunResult_i1(run_meta_data);
+        BinaryHeapInVector binaryHeap(compare_pair);
+        oneRunResult_i1.impl = std::string("binary_heap");
+        oneRunResult_i1.trace_path = traceFileBaseName;
+        run_trace_ops(binaryHeap, oneRunResult_i1, operations);
+        runResults.emplace_back(oneRunResult_i1);
+
+        RunResult oneRunResult_i2(run_meta_data);
+        BinomialQueue binomialQueue(compare_pair);
+        oneRunResult_i2.impl = std::string("binomial_queue");
+        oneRunResult_i2.trace_path = traceFileBaseName;
+        run_trace_ops(binomialQueue, oneRunResult_i2, operations);
+        runResults.emplace_back(oneRunResult_i2);
+
+        RunResult oneRunResult_i3(run_meta_data);
+        LinearBaseLine linear_base_line(compare_pair);
+        oneRunResult_i3.impl = std::string("linear_base");
+        oneRunResult_i3.trace_path = traceFileBaseName;
+        run_trace_ops(linear_base_line, oneRunResult_i3, operations);
+        runResults.emplace_back(oneRunResult_i3);
+
+    }
+    if (runResults.size() == 0) {
+        std::cerr << "No trace files found.\n";
+        return 1;
+    }
+    std::cout << RunResult::csv_header() << std::endl;
+    for (auto run: runResults) {
+        std::cout << run.to_csv_row() << std::endl;
+    }
+
+    return 0;
+}
+ 
+
+ 
+
+ 

@@ -1,0 +1,32 @@
+# Build directories
+cmake-build-debug/
+**/cmake-build-debug/
+**/build/
+**/*.o
+**/*.a
+**/*.so
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compiled binaries
+harness
+huffman_trace
+top_level_main
+**/BinaryHeapInVector
+**/BinomialQueues
+
